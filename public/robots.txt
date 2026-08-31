@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /creator/dashboard
+Disallow: /checkout
+
+Sitemap: https://pixelvault.app/sitemap.xml
