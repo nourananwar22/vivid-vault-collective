@@ -3,10 +3,11 @@ import { Crown, Download, Heart } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatCount, type Wallpaper } from "@/lib/wallpapers";
+import { formatCount, formatPrice } from "@/lib/format";
+import type { LibraryImage } from "@/lib/library.functions";
 
 type Props = {
-  item: Wallpaper;
+  item: LibraryImage;
   selected?: boolean;
   onToggleSelect?: (slug: string) => void;
 };
@@ -21,7 +22,7 @@ export function ImageCard({ item, selected, onToggleSelect }: Props) {
         aria-label={item.title}
       >
         <img
-          src={item.src}
+          src={item.preview_path ?? "/images/w1.jpg"}
           alt={`${item.title} — ${item.tags.slice(0, 3).join(", ")} wallpaper`}
           width={item.width}
           height={item.height}
@@ -43,14 +44,14 @@ export function ImageCard({ item, selected, onToggleSelect }: Props) {
 
       <Badge
         className={
-          item.premium
+          item.is_premium
             ? "absolute right-3 top-3 gap-1 bg-primary text-primary-foreground"
             : "absolute right-3 top-3 bg-secondary text-secondary-foreground"
         }
       >
-        {item.premium ? (
+        {item.is_premium ? (
           <>
-            <Crown className="size-3" /> ${item.price}
+            <Crown className="size-3" /> {formatPrice(item.price_cents)}
           </>
         ) : (
           "Free"
@@ -62,15 +63,15 @@ export function ImageCard({ item, selected, onToggleSelect }: Props) {
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{item.title}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {item.width}×{item.height} · {item.fileType}
+              {item.width}×{item.height} · {item.file_type}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Heart className="size-3" /> {formatCount(item.likes)}
+              <Heart className="size-3" /> {formatCount(item.like_count)}
             </span>
             <span className="flex items-center gap-1">
-              <Download className="size-3" /> {formatCount(item.downloads)}
+              <Download className="size-3" /> {formatCount(item.download_count)}
             </span>
           </div>
         </div>
