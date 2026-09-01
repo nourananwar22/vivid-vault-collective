@@ -1,17 +1,24 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Download, Search, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import hero from "@/assets/hero.jpg";
 import { ImageCard } from "@/components/site/ImageCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { categories, wallpapers as seedWallpapers, formatCount } from "@/lib/wallpapers";
-import { supabase } from "@/lib/supabase";
+import { categoriesQuery, wallpapersQuery } from "@/lib/queries";
 
+const trendingInput = { sort: "trending" as const, limit: 6 };
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(wallpapersQuery(trendingInput)),
+      context.queryClient.ensureQueryData(categoriesQuery()),
+    ]);
+  },
   head: () => ({
     meta: [
       { title: "Pixelvault — Free & Premium HD Wallpapers to Download" },
@@ -33,44 +40,12 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-export function Index() {
+function Index() {
+  const navigate = Route.useNavigate();
   const [q, setQ] = useState("");
-  const [trending, setTrending] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const popularTags = ["minimal", "dark", "neon", "nature", "4k", "abstract"];
-
-  useEffect(() => {
-    async function fetchApprovedWallpapers() {
-      try {
-        const { data, error } = await supabase
-          .from("wallpapers")
-          .select("*")
-          .eq("status", "approved")
-          .order("created_at", { ascending: false })
-          .limit(6);
-
-        if (!error && data && data.length > 0) {
-          setTrending(data);
-        } else if (import.meta.env.VITE_DEMO_MODE === "true") {
-          // Explicit demo mode fallback only
-          setTrending(seedWallpapers.slice(0, 6));
-        } else {
-          setTrending([]);
-        }
-      } catch (err) {
-        console.error("Error fetching wallpapers:", err);
-        if (import.meta.env.VITE_DEMO_MODE === "true") {
-          setTrending(seedWallpapers.slice(0, 6));
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchApprovedWallpapers();
-  }, []);
-
-
+  const { data: trending } = useSuspenseQuery(wallpapersQuery(trendingInput));
+  const { data: categories } = useSuspenseQuery(categoriesQuery());
+  const popularTags = ["minimal", "dark", "neon", "nature", "stars", "abstract"];
 
   return (
     <div>
@@ -85,7 +60,7 @@ export function Index() {
         <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background" />
         <div className="relative mx-auto max-w-4xl px-4 py-24 text-center sm:px-6 md:py-32">
           <Badge className="mb-6 gap-1 bg-secondary text-secondary-foreground">
-            <Sparkles className="size-3 text-primary" /> 26,000+ curated wallpapers
+            <Sparkles className="size-3 text-primary" /> Curated free & premium library
           </Badge>
           <h1 className="text-balance font-display text-4xl font-bold leading-tight sm:text-6xl">
             Wallpapers worth <span className="text-gradient">keeping</span>
@@ -99,7 +74,7 @@ export function Index() {
             className="mx-auto mt-8 flex max-w-xl gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              window.location.assign(`/browse?q=${encodeURIComponent(q)}`);
+              navigate({ to: "/browse", search: q ? { q } : {} });
             }}
           >
             <div className="relative flex-1">
@@ -107,12 +82,15 @@ export function Index() {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Try “dark minimal 4k”"
+                placeholder="Try “dark minimal”"
                 aria-label="Search wallpapers"
                 className="h-12 rounded-full border-border bg-card pl-11"
               />
             </div>
-            <Button type="submit" className="h-12 rounded-full bg-primary px-6 hover:bg-primary-dark">
+            <Button
+              type="submit"
+              className="h-12 rounded-full bg-primary px-6 hover:bg-primary-dark"
+            >
               Search
             </Button>
           </form>
@@ -137,7 +115,7 @@ export function Index() {
           <div>
             <h2 className="font-display text-2xl font-semibold sm:text-3xl">Trending this week</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Most downloaded across the whole library.
+              Most viewed across the whole library.
             </p>
           </div>
           <Button asChild variant="ghost" className="shrink-0">
@@ -147,19 +125,11 @@ export function Index() {
           </Button>
         </div>
 
-        {loading ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">Loading wallpapers...</div>
-        ) : trending.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            No approved wallpapers yet. Upload one and approve it from the admin dashboard!
-          </div>
-        ) : (
-          <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3">
-            {trending.map((item) => (
-              <ImageCard key={item.id || item.slug} item={item} />
-            ))}
-          </div>
-        )}
+        <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3">
+          {trending.map((item) => (
+            <ImageCard key={item.slug} item={item} />
+          ))}
+        </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
@@ -173,7 +143,7 @@ export function Index() {
               className="group relative aspect-[4/5] overflow-hidden rounded-xl border border-border"
             >
               <img
-                src={cat.cover}
+                src={cat.cover_path ?? "/images/w1.jpg"}
                 alt={`${cat.name} wallpapers`}
                 loading="lazy"
                 className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -181,7 +151,7 @@ export function Index() {
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-3">
                 <p className="font-medium">{cat.name}</p>
-                <p className="text-xs text-muted-foreground">{formatCount(cat.count)} images</p>
+                <p className="text-xs text-muted-foreground">{cat.count} images</p>
               </div>
             </Link>
           ))}
